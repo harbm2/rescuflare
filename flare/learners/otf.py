@@ -151,9 +151,13 @@ class OTF:
         # other args
         build_mode="bayesian",
         wandb_log=None,
+        bound_2_cutoff = {},
         **kwargs,
     ):
-
+        #if this is an empty dict (default), no changes from main branch. if it is defined, then the cutoff will be determined using the corresponding bound.
+        #for example bound_2_cutoff={0:3, 10:4, 100:5}  means use cutoff of 3 for 0<=step<10, cutoff of 4 for 11<=step<100 and cutoff of 5 for 100<=step
+        self.bound_2_cutoff=bound_2_cutoff
+        
         self.atoms = FLARE_Atoms.from_ase_atoms(atoms)
         if flare_calc is not None:
             self.atoms.calc = flare_calc
@@ -314,6 +318,10 @@ class OTF:
         self.start_time = time.time()
 
         while self.curr_step < self.number_of_steps:
+            for bound in sorted(self.bound_2_cutoff.keys(),reverse=True):
+                if self.curr_step >= bound:
+                    self.flare_calc.gp_model.cutoff = self.bound_2_cutoff[bound]
+                    break
             # run DFT and train initial model if first step and DFT is on
             if (
                 (self.curr_step == 0)
